@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Events Dashboard</title>
+    <link rel="stylesheet" href="evo-calendar.min.css">
+    <link rel="stylesheet" href="evo-calendar.midnight-blue.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #ffffff;
+            color: #000000;
+            transition: all 0.3s ease-in-out;
+        }
+        .dark-theme {
+            background-color: #121212;
+            color: #ffffff;
+        }
+        .header {
+            background: #1e90ff;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h2 {
+            margin: 0;
+        }
+        .hero {
+            display: flex;
+            flex: 1;
+        }
+        #calendar {
+            width: 75%;
+        }
+        .sidebar {
+            width: 25%;
+            background: #f5f5f5;
+            padding: 20px;
+            border-left: 1px solid #ddd;
+            height: 100vh;
+        }
+        .dark-theme .sidebar {
+            background: #1e1e1e;
+            border-left: 1px solid #444;
+        }
+        .sidebar h3 {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        #upcoming-events {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .event {
+            padding: 10px;
+            margin: 10px 0;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .dark-theme .event {
+            background: #333;
+            box-shadow: 0px 2px 5px rgba(255, 255, 255, 0.1);
+        }
+        .event-name {
+            font-weight: bold;
+        }
+        .event-date {
+            font-size: 0.9em;
+            color: #555;
+        }
+        .dark-theme .event-date {
+            color: #bbb;
+        }
+        #addEventForm {
+            display: none;
+            margin-top: 20px;
+        }
+        #addEventForm input, #addEventForm button, #addEventForm input[type="file"] {
+            margin-bottom: 10px;
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        #eventImagePreview {
+            max-width: 100%;
+            height: auto;
+            display: none;
+        }
+        #pinInput {
+            display: none;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2 id="time">Time: Loading...</h2>
+        <h2 id="location">Location: Avcoe, Sangamner, India</h2>
+        <button id="themeToggle" class="theme-toggle">Toggle Dark Theme</button>
+        <h2 id="weather">Weather: Loading...</h2>
+    </div>
+
+    <div class="hero">
+        <div id="calendar"></div>
+
+        <div class="sidebar">
+            <h3>Upcoming Events</h3>
+            <div id="upcoming-events"></div>
+            <button id="addEventButton">Add Event</button>
+            <div id="pinInput">
+                <input type="password" id="adminPin" placeholder="Enter Admin Pin">
+                <button id="verifyPin">Verify</button>
+            </div>
+            <div id="addEventForm">
+                <input type="text" id="eventName" placeholder="Event Name">
+                <input type="date" id="eventDate">
+                <input type="file" id="eventImage" accept="image/*">
+                <img id="eventImagePreview" src="" alt="Event Image">
+                <button id="submitEvent">Submit Event</button>
+            </div>
+        </div>
+    </div>
+
+    <audio id="reminder-sound" src="C:\Users\SAGAR\OneDrive\Desktop\calender\proj\reminder-sound.mp3" preload="auto"></audio>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.4.1/dist/jquery.min.js"></script>
+    <script src="evo-calendar.min.js"></script>
+
+    <script>
+        function playReminderSound() {
+            const sound = document.getElementById("reminder-sound");
+            sound.currentTime = 0;
+            sound.play().catch(error => {
+                console.warn("User interaction is required to play the sound:", error);
+            });
+        }
+
+        function saveEventsToLocalStorage(events) {
+            localStorage.setItem('calendarEvents', JSON.stringify(events));
+        }
+
+        function loadEventsFromLocalStorage() {
+            const storedEvents = localStorage.getItem('calendarEvents');
+            if (storedEvents) {
+                return JSON.parse(storedEvents);
+            }
+            return [
+                { name: "BOLLYWOOD DAY MEDHA", date: "2025-01-31", type: "event", color: "#ff4500" },
+                { name: "Pratik Birthday", date: "2025-01-28", type: "event", color: "#ff4500" },
+                { name: "Traditional Day", date: "2025-02-01", type: "event", color: "#ff4500" },
+                { name: "Republic Day", date: "2024-01-26", type: "holiday", color: "#ff4500" },
+                { name: "Amaan malik Concert", date: "2025-02-02", type: "event", color: "#ff4500" },
+                { name: "Medha Cup", date: "2025-02-03", type: "event", color: "#ff4500" },
+                { name: "Parent meet TE", date: "2025-02-15", type: "event", color: "#ff4500" },
+                { name: "Commencement of FE/SE Classes", date: "2025-02-05", type: "regular", color: "#1e90ff" },
+                { name: "Mid-Semester Examination", date: "2025-03-01", type: "regular", color: "#63d867" },
+                { name: "Good Friday", date: "2025-03-29", type: "holiday", color: "#ff4500" },
+                { name: "Last Working Day", date: "2025-04-30", type: "regular", color: "#ffa500" },
+                { name: "Makar Sankranti", date: "2025-01-14", type: "holiday", color: "#ffa500" },
+                { name: "Pongal", date: "2025-01-15", type: "holiday", color: "#ffa500" },
+                { name: "Mahashivratri", date: "2025-02-24", type: "holiday", color: "#ff4500" },
+                { name: "Holi", date: "2025-03-17", type: "holiday", color: "#ff4500" },
+                { name: "Ram Navami", date: "2025-04-06", type: "holiday", color: "#ff4500" },
+                { name: "Baisakhi", date: "2025-04-13", type: "holiday", color: "#ffa500" },
+                { name: "Eid-ul-Fitr", date: "2025-02", type: "holiday", color: "#ff4500" },
+                { name: "Raksha Bandhan", date: "2025-08-10", type: "holiday", color: "#ffa500" },
+                { name: "Ganesh Chaturthi", date: "2025-09-10", type: "holiday", color: "#ff4500" },
+                { name: "Durga Puja", date: "2025-10-20", type: "holiday", color: "#ff4500" },
+                { name: "Dussehra", date: "2025-10-24", type: "holiday", color: "#ffa500" },
+                { name: "Diwali", date: "2025-11-12", type: "holiday", color: "#ff4500" },
+                { name: "shiv jayanti ", date: "2025-02-19", type: "holiday", color: "#ff4500" },
+                { name: "Christmas", date: "2025-12-25", type: "holiday", color: "#63d867" },
+                { name: "abhay Birthday", date: "2025-02-06", type: "holiday", color: "#ff4500" },
+                    ];
+        }
+let events = loadEventsFromLocalStorage();
+
+    $(document).ready(function () {
+        $('#calendar').evoCalendar({
+            calendarEvents: events
+        });
+
+        displayUpcomingEvents();
+
+        function updateTime() {
+            const indiaTime = new Date().toLocaleString("en-US", {
+                timeZone: "Asia/Kolkata",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: true
+            });
+            document.getElementById("time").textContent = "Time: " + indiaTime;
+        }
+        setInterval(updateTime, 1000);
+
+        async function fetchWeather() {
+            const apiKey = "9812a2cd7527c37af7e50ac1e85c981d";
+            const url = `https://api.openweathermap.org/data/2.5/weather?q=Sangamner,IN&units=metric&appid=${apiKey}`;
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                const temp = data.main.temp;
+                const description = data.weather[0].description;
+                document.getElementById("weather").textContent =
+                    `Weather: ${temp}°C, ${description.charAt(0).toUpperCase() + description.slice(1)}`;
+            } catch (error) {
+                document.getElementById("weather").textContent = "Weather: Unable to fetch data.";
+            }
+        }
+        fetchWeather();
+
+        const themeToggle = document.getElementById("themeToggle");
+        themeToggle.addEventListener("click", () => {
+            document.body.classList.toggle("dark-theme");
+
+            const isDark = document.body.classList.contains("dark-theme");
+            $('#calendar').evoCalendar('destroy');
+            $('#calendar').evoCalendar({
+                theme: isDark ? 'midnight-blue' : 'default',
+                calendarEvents: events
+            });
+
+            themeToggle.textContent = isDark
+                ? "Toggle Light Theme"
+                : "Toggle Dark Theme";
+        });
+
+        const addEventButton = document.getElementById("addEventButton");
+        const addEventForm = document.getElementById("addEventForm");
+        const submitEvent = document.getElementById("submitEvent");
+        const eventNameInput = document.getElementById("eventName");
+        const eventDateInput = document.getElementById("eventDate");
+        const eventImageInput = document.getElementById("eventImage");
+        const eventImagePreview = document.getElementById("eventImagePreview");
+        const pinInput = document.getElementById("pinInput");
+        const verifyPin = document.getElementById("verifyPin");
+        const adminPinInput = document.getElementById("adminPin");
+
+        addEventButton.addEventListener("click", () => {
+            pinInput.style.display = "block";
+        });
+
+        verifyPin.addEventListener("click", () => {
+            const enteredPin = adminPinInput.value;
+            if (enteredPin === "2025") {
+                pinInput.style.display = "none";
+                addEventForm.style.display = "block";
+                adminPinInput.value = "";
+            } else {
+                alert("Incorrect PIN.");
+                adminPinInput.value = "";
+            }
+        });
+
+        eventImageInput.addEventListener("change", (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    eventImagePreview.src = e.target.result;
+                    eventImagePreview.style.display = "block";
+                };
+                reader.readAsDataURL(file);
+            } else {
+                eventImagePreview.src = "";
+                eventImagePreview.style.display = "none";
+            }
+        });
+
+        submitEvent.addEventListener("click", () => {
+            const name = eventNameInput.value;
+            const date = eventDateInput.value;
+            const image = eventImagePreview.src;
+            if (name && date) {
+                const newEvent = { name: name, date: date, type: "event", color: "#008000" };
+                events.push(newEvent);
+                $('#calendar').evoCalendar('addCalendarEvent', [newEvent]);
+                eventNameInput.value = "";
+                eventDateInput.value = "";
+                eventImageInput.value = "";
+                eventImagePreview.src = "";
+                eventImagePreview.style.display = "none";
+                addEventForm.style.display = "none";
+                displayUpcomingEvents();
+                saveEventsToLocalStorage(events);
+            } else {
+                alert("Please fill in all fields.");
+            }
+        });
+
+        function displayUpcomingEvents() {
+            const today = new Date();
+            const upcomingEventsDiv = document.getElementById("upcoming-events");
+            upcomingEventsDiv.innerHTML = "";
+            const upcomingEvents = events
+                .filter(event => new Date(event.date) >= today)
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+            upcomingEvents.forEach(event => {
+                const eventDiv = document.createElement("div");
+                eventDiv.className = "event";
+                eventDiv.innerHTML = `
+                    <div class="event-name">${event.name}</div>
+                    <div class="event-date">${new Date(event.date).toDateString()}</div>
+                `;
+                eventDiv.addEventListener("click", () => {
+                    $('#calendar').evoCalendar('selectDate', event.date);
+                });
+                upcomingEventsDiv.appendChild(eventDiv);
+
+                const eventDate = new Date(event.date);
+                const timeDiff = eventDate - today;
+                const hoursDiff = timeDiff / (1000 * 3600);
+
+                if (hoursDiff <= 48 && hoursDiff > 0) {
+                    setTimeout(() => {
+                        alert(`Reminder: The event "${event.name}" is coming up soon on ${eventDate.toDateString()}.`);
+                        playReminderSound();
+                    }, 1000);
+                }
+            });
+        }
+    });
+</script>
+</body>
+</html>
